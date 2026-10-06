@@ -1,1 +1,1 @@
-"""Provider-independent workflow contracts; orchestration comes in Phase 2."""
+"""Provider-independent workflow ports, prompts, response parsing, and services."""

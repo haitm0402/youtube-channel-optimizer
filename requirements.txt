@@ -1,2 +1,2 @@
-# Python >= 3.11. Phase 1 uses only the Python standard library.
-# Add provider SDKs only when a concrete adapter is implemented.
+# Python >= 3.11. Phases 1 and 2 use only the Python standard library.
+# Add provider SDKs only when a concrete production adapter is implemented.

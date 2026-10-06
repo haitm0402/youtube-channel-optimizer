@@ -1,0 +1,87 @@
+{
+  "channel_positioning": "Nhạc Việt acoustic và ballad dành cho khoảnh khắc thư giãn.",
+  "avatar_concepts": [
+    {
+      "concept": "Nốt nhạc dưới trăng",
+      "composition": "Biểu tượng đặt giữa, khoảng trống rộng để rõ khi thu nhỏ.",
+      "colors": [
+        "Hổ phách",
+        "Xanh đêm"
+      ],
+      "lighting": "Ánh sáng ấm dịu",
+      "background": "Nền xanh đêm tối giản",
+      "main_subject": "crescent moon and musical note",
+      "image_prompt": "Circular channel avatar, crescent moon and musical note, amber and midnight blue, clean central silhouette, soft warm lighting, no text, no watermark."
+    },
+    {
+      "concept": "Guitar bên hiên",
+      "composition": "Biểu tượng đặt giữa, khoảng trống rộng để rõ khi thu nhỏ.",
+      "colors": [
+        "Hổ phách",
+        "Xanh đêm"
+      ],
+      "lighting": "Ánh sáng ấm dịu",
+      "background": "Nền xanh đêm tối giản",
+      "main_subject": "acoustic guitar silhouette",
+      "image_prompt": "Circular channel avatar, acoustic guitar silhouette, amber and midnight blue, clean central silhouette, soft warm lighting, no text, no watermark."
+    },
+    {
+      "concept": "Sóng âm dịu",
+      "composition": "Biểu tượng đặt giữa, khoảng trống rộng để rõ khi thu nhỏ.",
+      "colors": [
+        "Hổ phách",
+        "Xanh đêm"
+      ],
+      "lighting": "Ánh sáng ấm dịu",
+      "background": "Nền xanh đêm tối giản",
+      "main_subject": "gentle sound wave",
+      "image_prompt": "Circular channel avatar, gentle sound wave, amber and midnight blue, clean central silhouette, soft warm lighting, no text, no watermark."
+    },
+    {
+      "concept": "Đĩa nhạc ấm",
+      "composition": "Biểu tượng đặt giữa, khoảng trống rộng để rõ khi thu nhỏ.",
+      "colors": [
+        "Hổ phách",
+        "Xanh đêm"
+      ],
+      "lighting": "Ánh sáng ấm dịu",
+      "background": "Nền xanh đêm tối giản",
+      "main_subject": "minimal vinyl record",
+      "image_prompt": "Circular channel avatar, minimal vinyl record, amber and midnight blue, clean central silhouette, soft warm lighting, no text, no watermark."
+    }
+  ],
+  "banner": {
+    "concept": "Không gian nghe nhạc dưới ánh trăng",
+    "layout": "Tâm điểm trong vùng an toàn trung tâm; hai bên là phong cảnh mở rộng.",
+    "background": "Bầu trời xanh đêm với đường chân trời mờ",
+    "typography_direction": "Sans-serif rõ ràng; tên kênh lớn, slogan nhỏ, tránh sát mép.",
+    "main_visual": "Guitar acoustic và vầng trăng",
+    "image_prompt": "Wide YouTube banner concept, acoustic guitar under moonlight, midnight blue and amber, central safe area reserved for channel name, no rendered text, no watermark."
+  },
+  "channel_description": "Nhạc Việt nhẹ nhàng cho những buổi tối bình yên.",
+  "channel_keywords": [
+    "nhạc Việt",
+    "acoustic Việt",
+    "ballad Việt"
+  ],
+  "video_core_keywords": [
+    "nhạc thư giãn",
+    "playlist acoustic"
+  ],
+  "video_tags": [
+    "nhạc Việt thư giãn",
+    "acoustic playlist",
+    "ballad buổi tối"
+  ],
+  "hashtags": [
+    "#NhạcViệt",
+    "#Acoustic",
+    "#ThưGiãn"
+  ],
+  "title_templates": [
+    "{artist} Acoustic | {mood} — {channel_name}",
+    "Nhạc Việt {mood} | Playlist {theme}"
+  ],
+  "thumbnail_visual_guide": "Dùng xanh đêm và hổ phách, một điểm nhìn chính, chữ ngắn dễ đọc trên di động; không dùng hình nghệ sĩ khi chưa có quyền.",
+  "slogan": "Một giai điệu, một phút bình yên."
+}

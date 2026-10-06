@@ -1,1 +1,1 @@
-"""Future external adapters (AI providers and YouTube data sources)."""
+"""External adapters and provider composition; Phase 2 implements only offline mock."""

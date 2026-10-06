@@ -8,13 +8,13 @@ from config.settings import PROJECT_ROOT
 
 
 class ConfigTests(unittest.TestCase):
-    def test_default_settings_and_placeholder_assets(self):
+    def test_default_settings_and_prompt_assets(self):
         settings = load_settings()
         self.assertEqual(settings.ai_provider, 'unconfigured')
         self.assertIsNone(settings.ai_model)
         self.assertEqual(settings.exports_dir, PROJECT_ROOT / 'exports')
         for name in ('analyze_competitor.md', 'generate_names.md', 'generate_package.md'):
-            self.assertIn('Placeholder', (settings.prompts_dir / name).read_text(encoding='utf-8'))
+            self.assertIn('# Task:', (settings.prompts_dir / name).read_text(encoding='utf-8'))
 
     def test_config_relative_paths_and_unicode(self):
         with TemporaryDirectory() as directory:
