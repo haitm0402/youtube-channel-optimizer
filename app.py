@@ -1,6 +1,7 @@
 """Configuration diagnostic and explicit offline demo; no external API calls."""
 import argparse
 from dataclasses import replace
+from pathlib import Path
 import json
 import sys
 from config import load_settings
@@ -9,24 +10,40 @@ from core.errors import ApplicationError
 from core.prompts import PromptLoader
 from models import ChannelProfile, CompetitorInput, TargetAudience
 from services.providers import create_text_generator
+from services.manual_cli import run_manual
 from utils.json_io import write_profile
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate configuration or run the offline mock pipeline")
+    parser = argparse.ArgumentParser(description="Manual AI bridge, configuration check, or legacy offline mock demo")
     parser.add_argument("--config", help="Path to an optional TOML configuration")
-    parser.add_argument("--mock-demo", action="store_true", help="Run analysis and 12 names using fixed mock data")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--manual", action="store_true", help="Run the text-only V1 manual prompt/paste workflow")
+    parser.add_argument("--input-json", help="UTF-8 file with competitor input for --manual")
+    mode.add_argument("--mock-demo", action="store_true", help="Run analysis and 12 names using fixed mock data")
     parser.add_argument("--select-name", help="Generate/export a mock package for an exact suggested name")
     args = parser.parse_args()
     if args.select_name is not None and not args.mock_demo:
         parser.error("--select-name requires --mock-demo")
+    if args.input_json is not None and not args.manual:
+        parser.error("--input-json requires --manual")
     try:
         settings = load_settings(args.config)
         if not settings.prompts_dir.is_dir():
             parser.error(f"Prompt directory does not exist: {settings.prompts_dir}")
+        if args.manual:
+            for stream in (sys.stdin, sys.stdout, sys.stderr):
+                if hasattr(stream, "reconfigure"):
+                    stream.reconfigure(encoding="utf-8")
+            competitor = None
+            if args.input_json is not None:
+                data = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
+                competitor = CompetitorInput.from_v1_dict(data)
+            run_manual(settings, competitor=competitor)
+            return
         if not args.mock_demo:
             print(f"Configuration valid. AI provider: {settings.ai_provider}")
-            print("Phase 2 structured services available; use --mock-demo for offline fixtures.")
+            print("Phase 3 V1: use --manual to copy prompts and paste JSON; no AI provider required.")
             return
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8")
@@ -51,6 +68,8 @@ def main() -> None:
         destination = settings.exports_dir / "channel_profile.json"
         write_profile(profile, destination)
         print(f"Mock profile exported: {destination}")
+    except (EOFError, KeyboardInterrupt):
+        parser.exit(1, "\nManual workflow cancelled; incomplete session was not exported.\n")
     except (ApplicationError, ValueError, OSError) as exc:
         parser.error(str(exc))
 

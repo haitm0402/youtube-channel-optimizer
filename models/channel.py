@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 from enum import Enum
 import math
+import re
 from .validation import required as _required, strings as _strings, object_fields
 from urllib.parse import urlsplit
 
@@ -21,24 +22,96 @@ class TargetAudience:
                 _required(value, name)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class CompetitorInput:
+    # Legacy fields preserve positional constructors and existing profile JSON.
     url: str
-    avatar_reference: str
+    avatar_reference: str | None
     description: str
-    target: TargetAudience = field(default_factory=TargetAudience)
+    target: TargetAudience
+
+    def __init__(self, url: str | None = None, avatar_reference: str | None = None,
+                 description: str | None = None, target: TargetAudience | None = None, *,
+                 competitor_url: str | None = None, competitor_description: str | None = None,
+                 target_artist: str | None = None, target_market: str | None = None,
+                 target_language: str | None = None):
+        if url is not None and competitor_url is not None and url != competitor_url:
+            raise ValueError("url and competitor_url conflict")
+        if description is not None and competitor_description is not None and description != competitor_description:
+            raise ValueError("description and competitor_description conflict")
+        if target is not None and not isinstance(target, TargetAudience):
+            raise ValueError("target must be a TargetAudience")
+        audience = target if target is not None else TargetAudience()
+        for name, value in (("artist", target_artist), ("market", target_market), ("language", target_language)):
+            if value is not None and getattr(audience, name) is not None and value != getattr(audience, name):
+                raise ValueError(f"target_{name} conflicts with target.{name}")
+        audience = TargetAudience(
+            target_artist if target_artist is not None else audience.artist,
+            target_market if target_market is not None else audience.market,
+            target_language if target_language is not None else audience.language,
+        )
+        object.__setattr__(self, "url", competitor_url if competitor_url is not None else url)
+        object.__setattr__(self, "description", competitor_description if competitor_description is not None else description)
+        object.__setattr__(self, "avatar_reference", avatar_reference)
+        object.__setattr__(self, "target", audience)
+        self.__post_init__()
 
     def __post_init__(self) -> None:
-        _required(self.url, "url")
-        parsed = urlsplit(self.url)
+        _required(self.url, "competitor_url")
+        if any(character.isspace() or ord(character) < 32 for character in self.url):
+            raise ValueError("url must not contain whitespace or control characters")
+        try:
+            parsed = urlsplit(self.url)
+            valid_port = parsed.port in (None, 443)
+        except ValueError as exc:
+            raise ValueError("url must be a valid HTTPS YouTube channel reference") from exc
+        channel_path = re.fullmatch(
+            r"/(?:@[^/]+|(?:channel|c|user)/[^/]+)(?:/(?:featured|videos|shorts|streams|playlists|community|about|releases))?",
+            parsed.path.rstrip("/"),
+        )
         if (parsed.scheme != "https" or parsed.hostname not in
                 {"youtube.com", "www.youtube.com", "m.youtube.com"}
-                or not parsed.path.strip("/") or parsed.username or parsed.password):
-            raise ValueError("url must be an HTTPS YouTube channel reference")
-        _required(self.avatar_reference, "avatar_reference")
-        _required(self.description, "description")
-        if not isinstance(self.target, TargetAudience):
-            raise ValueError("target must be a TargetAudience")
+                or not channel_path or not valid_port or parsed.username is not None or parsed.password is not None):
+            raise ValueError("url must be an HTTPS YouTube channel reference (@handle, channel, c, or user)")
+        if self.avatar_reference is not None:
+            _required(self.avatar_reference, "avatar_reference")
+        _required(self.description, "competitor_description")
+
+    @property
+    def competitor_url(self) -> str:
+        return self.url
+
+    @property
+    def competitor_description(self) -> str:
+        return self.description
+
+    @property
+    def target_artist(self) -> str | None:
+        return self.target.artist
+
+    @property
+    def target_market(self) -> str | None:
+        return self.target.market
+
+    @property
+    def target_language(self) -> str | None:
+        return self.target.language
+
+    def to_prompt_dict(self) -> dict[str, Any]:
+        """Active V1 text input; legacy avatar metadata is never used."""
+        return {"competitor_url": self.competitor_url,
+                "competitor_description": self.competitor_description,
+                "target_artist": self.target_artist, "target_market": self.target_market,
+                "target_language": self.target_language}
+
+    @classmethod
+    def from_v1_dict(cls, data: dict[str, Any]) -> "CompetitorInput":
+        if not isinstance(data, dict):
+            raise ValueError("Competitor input must be a JSON object")
+        mandatory = {"competitor_url", "competitor_description"}
+        optional = {"target_artist", "target_market", "target_language"}
+        object_fields(data, mandatory | (data.keys() & optional), "Competitor input")
+        return cls(**data)
 
 
 @dataclass(frozen=True)
@@ -163,6 +236,11 @@ class ChannelNameResult:
         if not isinstance(data["names"], list):
             raise ValueError("names must be an array")
         return cls([NameCandidate.from_ai_dict(item) for item in data["names"]], data["best_recommendation"])
+
+    def to_ai_dict(self) -> dict[str, Any]:
+        return {"names": [{"name": item.name, "category": item.category.value if item.category is not None else None,
+                           "short_reason": item.short_reason, "score": item.score} for item in self.names],
+                "best_recommendation": self.best_recommendation}
 
 
 @dataclass(frozen=True)

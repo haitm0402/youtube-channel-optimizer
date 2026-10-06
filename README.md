@@ -1,154 +1,45 @@
 # YouTube Channel Optimizer
 
-Công cụ Python hỗ trợ tạo và tối ưu kênh YouTube Music từ thông tin kênh đối thủ.
-**Trạng thái: PHASE 2 — AI Service + Structured Prompt System, chạy offline với mock.**
-PHASE 1 đã có models, settings và JSON export; PHASE 2 mở rộng trên bộ khung đó.
-Chưa triển khai GUI, scraping YouTube, sinh ảnh, API AI thật, upload hay browser automation.
+**PHASE 3 — Manual AI Bridge + Competitor Workflow.** V1 không cần API key,
+paid AI API, SDK OpenAI hoặc kết nối AI từ ứng dụng. Người dùng tự chuyển prompt và
+JSON giữa công cụ này với ChatGPT/Codex. Việc truy cập ChatGPT/Codex bên ngoài tùy
+thuộc tài khoản của bạn; ứng dụng không kết nối hoặc điều khiển các dịch vụ đó.
 
-## Workflow và kiến trúc PHASE 2
+Không có GUI, avatar processing/analysis/generation, vision API, sinh ảnh, scraping
+YouTube, upload hay browser automation. URL hiện chỉ là tham chiếu; mô tả kênh do
+người dùng cung cấp. Visual identity chỉ dựa vào thông tin hình ảnh được mô tả rõ
+trong văn bản; nếu thiếu, prompt yêu cầu nói rõ thông tin đó chưa được xác lập.
 
-```text
-CompetitorInput (URL + avatar reference + description + optional target)
-  → CompetitorAnalysisService → CompetitorAnalysis
-  → ChannelNameService → ChannelNameResult (12 tên + best_recommendation)
-  → Người dùng chọn một tên trong danh sách
-  → ChannelPackageService → ChannelPackage
-  → ChannelProfile → exports/channel_profile.json
-```
-
-Mỗi service dùng cùng quy trình:
+## Workflow V1
 
 ```text
-UTF-8 Markdown file → PromptLoader → PromptRenderer
-→ TextGenerator.generate(prompt=...)
-→ strict JSON parse → strict model validation → typed result
+Competitor URL + description + optional target artist/market/language
+→ generate analysis prompt → copy to ChatGPT/Codex manually
+→ paste JSON → strict validation → CompetitorAnalysis
+→ generate names prompt → copy manually → paste JSON
+→ ChannelNameResult: 12 names, 4 positioning + 4 brand + 4 memorable
+→ user selects an exact suggested name
+→ generate text-only package prompt → copy manually → paste JSON
+→ ChannelPackageV1 → export UTF-8 files
 ```
 
-- `core.contracts.TextGenerator` là `Protocol` hiện có, không phụ thuộc SDK.
-  Services nhận provider qua constructor; provider chỉ trả text, không quyết định
-  validation. Provider khác có thể thay thế bằng cùng method `generate(*, prompt) -> str`.
-- `core.ai_services` chứa orchestration. `services` chứa adapter và factory tại điểm
-  composition. `create_text_generator` hiện chỉ hỗ trợ `mock`; provider chưa triển khai
-  gây `ProviderError`, không tự fallback hoặc gọi API thật.
-- `core.responses.parse_response` yêu cầu một JSON object, không chấp nhận prose,
-  Markdown fences, trailing content, duplicate keys, NaN hoặc Infinity. JSON sai cú pháp
-  gây `MalformedResponseError`; schema sai gây `ResponseValidationError`.
-  Không repair, thêm trường thiếu, retry hay âm thầm nhận output sai.
-- Models dùng dataclass và validation của thư viện chuẩn. Các factory `from_ai_dict`
-  kiểm tra đúng tập keys, kiểu dữ liệu và quy tắc nghiệp vụ, kể cả nested objects.
+Lỗi JSON hoặc schema không được tự sửa. Phản hồi sai giữ nguyên bước đang chờ để
+người dùng sửa rồi dán lại. Không tự chọn recommendation và không gọi provider.
 
-## Models và tương thích
+## Chạy ứng dụng
 
-- `CompetitorAnalysis` có summary, positioning, reference_artist, music_niche,
-  genre, subgenre, target_market, language, target_audience, visual_identity,
-  tone_of_voice, seo_topics, branding_characteristics, strengths và opportunities.
-  AI phải trả mọi key; `reference_artist` được phép là `null` khi chưa biết.
-  Các trường text khác và các list phải không rỗng.
-- `NameCandidate` có name, category (`positioning`, `brand`, `memorable`), short_reason
-  và score hữu hạn 0–10. `ChannelNameResult` bắt buộc đúng **12 tên**, **4 mỗi category**,
-  tên không trùng sau khi trim/casefold, và best_recommendation khớp chính xác một tên.
-  Package generation chỉ nhận tên đã được người dùng chọn trong kết quả này.
-- `ChannelPackage` có channel_positioning, đúng **4** `AvatarConcept`, một `BannerConcept`,
-  channel_description, channel_keywords, video_core_keywords, video_tags, hashtags,
-  title_templates, thumbnail_visual_guide và slogan.
-  Avatar có concept, composition, colors (list), lighting, background, main_subject,
-  image_prompt. Banner có concept, layout, background, typography_direction,
-  main_visual và image_prompt. Đây là mô tả/prompt văn bản, không phải ảnh đã sinh.
-- Giữ constructor và alias PHASE 1: `audience` ↔ `target_audience`, `rationale` ↔
-  `short_reason`, `prompt` ↔ `image_prompt`. Alias mâu thuẫn gây lỗi. Package giữ các
-  trường cũ `positioning`, `description`, `banner_concept`, `banner_prompt`; các tên
-  canonical mới có qua properties và `from_ai_dict`/`to_ai_dict`.
-- Model legacy được phép thiếu enrichment mới để đọc dữ liệu PHASE 1; **AI factories
-  luôn yêu cầu schema PHASE 2 đầy đủ**. Services không cho analysis legacy thiếu dữ
-  liệu đi tiếp như analysis hoàn chỉnh. Có thể dùng `ChannelPackage.from_ai_dict`
-  để khởi tạo package bằng schema canonical mới.
-- Export `ChannelProfile` giữ `schema_version = 1`, tên trường PHASE 1 và bổ sung
-  enrichment mới; JSON PHASE 1 cũ vẫn đọc được bởi code hiện tại. Code PHASE 1 cũ
-  không được đảm bảo đọc export đã mở rộng. `to_ai_dict` là shape canonical cho AI;
-  `ChannelProfile.to_dict` là shape persistence có aliases để tương thích.
-- Dataclass frozen chỉ ngăn gán lại field, không đóng băng list. Service kiểm tra lại
-  analysis/name collections trước khi dùng để tránh bỏ qua quy tắc qua list mutation.
+Yêu cầu **Python 3.11+**. Toàn bộ PHASE 1–3 chỉ dùng thư viện chuẩn.
+Chạy từ thư mục repository.
 
-Validation kiểm tra cấu trúc và quy tắc, không chứng minh chất lượng nội dung, tính
-khả dụng tên kênh, SEO hiệu quả hoặc dữ liệu thực tế của đối thủ. URL chỉ được kiểm
-tra hình thức/hostname YouTube; avatar reference chưa được tải hoặc phân tích ảnh.
-
-## Cấu trúc project
-
-```text
-app.py                         # Kiểm tra config và CLI mock demo với bước chọn tên
-core/
-  contracts.py                 # TextGenerator / CompetitorSource ports
-  errors.py                    # Application errors
-  prompts.py                   # PromptLoader / PromptRenderer
-  responses.py                 # Strict JSON → typed model
-  ai_services.py               # Ba application services
-models/
-  channel.py                   # Models legacy + enriched models + strict AI factories
-  validation.py                # Validation primitives
-config/
-  default.toml                 # Cấu hình mặc định không chứa secret
-  settings.py                  # TOML + environment overrides
-prompts/
-  README.md
-  analyze_competitor.md
-  generate_names.md
-  generate_package.md
-services/
-  providers.py                 # Composition factory
-  mock.py                      # MockTextGenerator
-  mock_data/
-    analysis.json
-    names.json
-    package.json
-utils/
-  json_io.py                   # ChannelProfile UTF-8 read/write
-exports/
-  .gitkeep                     # Export thực tế được Git bỏ qua
-tests/
-  __init__.py
-  helpers.py
-  test_models.py               # PHASE 1 regression checks
-  test_config.py
-  test_ai_models.py
-  test_ai_services.py
-  test_prompts.py
-  test_settings_env.py
-.env.example
-.gitignore
-requirements.txt
-README.md
-```
-
-Các package `core`, `models`, `config`, `services`, `utils` có `__init__.py`.
-
-## Prompt system
-
-Prompt được lưu ngoài source Python dưới dạng UTF-8 Markdown. Biến dùng `${name}`
-hoặc `$name`; literal dollar dùng `$$`. JSON braces và các slot title như `{artist}`
-giữ nguyên. Renderer thay thế một lần, không diễn giải `${...}` trong nội dung input.
-File thiếu, file rỗng, sai UTF-8, đường dẫn thoát prompt directory, syntax không hợp lệ
-hoặc thiếu biến đều gây `PromptError` với thông báo cụ thể.
-
-Thêm template mới vào prompt directory rồi gọi `loader.load("new_prompt.md")` và
-`renderer.render(template, variables)`; không cần sửa loader. Task mock mới cần fixture
-và đăng ký trong mock adapter. Ba template hiện tại mô tả schema JSON; Python vẫn là
-nơi bắt buộc xác thực output. Prompt không chứng minh đã truy cập URL hay avatar.
-
-## Cài đặt và chạy
-
-Yêu cầu **Python 3.11+** (`tomllib` và `string.Template` introspection).
-Cả hai phase chỉ dùng thư viện chuẩn; không cần API key, SDK hoặc Internet.
-
-Windows PowerShell, từ thư mục repository:
+Windows PowerShell:
 
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe app.py
+.\.venv\Scripts\python.exe app.py --manual
+# Hoặc nạp input UTF-8, hỗ trợ mô tả nhiều dòng:
+.\.venv\Scripts\python.exe app.py --manual --input-json examples/competitor_input.json
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-.\.venv\Scripts\python.exe app.py --mock-demo
-.\.venv\Scripts\python.exe app.py --mock-demo --select-name "Mây Âm Nhạc"
 ```
 
 Linux/macOS:
@@ -156,68 +47,216 @@ Linux/macOS:
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python app.py
+.venv/bin/python app.py --manual
+.venv/bin/python app.py --manual --input-json examples/competitor_input.json
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python app.py --mock-demo
-.venv/bin/python app.py --mock-demo --select-name "Mây Âm Nhạc"
 ```
 
-`--mock-demo` hiển thị analysis, 12 tên và recommendation; **chưa tạo package** cho tới
-khi truyền `--select-name` khớp một suggestion. Chọn tên khác recommendation cũng được.
-Profile xuất vào `exports/channel_profile.json`; chạy lại với tên đã chọn sẽ ghi đè
-file export đó. CLI dùng example input và fixture minh họa, không lấy dữ liệu từ YouTube.
-`--mock-demo` luôn chọn mock kể cả settings đang trỏ provider khác.
+Với `--manual`, nhập URL/mô tả và targets tùy chọn hoặc dùng `--input-json`.
+Ứng dụng in prompt đầy đủ để copy. Sau khi nhận kết quả từ ChatGPT/Codex, dán JSON
+nhiều dòng vào console và kết thúc bằng **`END_JSON` trên một dòng riêng**.
+Lặp lại cho analysis, names và package; chọn tên bằng cách nhập đúng suggestion.
+Nếu phản hồi lỗi, console hiển thị lỗi và cho dán lại. Nếu muốn dừng, dùng Ctrl+C;
+EOF cũng hủy session. Session hiện nằm trong bộ nhớ, chưa lưu/resume giữa các lần
+chạy; chỉ workflow COMPLETE được export. Đây là CLI, chưa phải GUI.
 
-Mock dùng fixture cố định tiếng Việt, không mô phỏng việc suy luận theo mọi artist/
-market/language. Description của package phản ánh tên được chọn; các dữ liệu còn lại
-cố định để test hợp đồng. Task được định tuyến bằng dòng đầu template, không bằng nội
-dung đối thủ. Có thể sử dụng các service trực tiếp với input thực, nhưng mock vẫn trả
-fixture, không đưa ra phân tích thật.
+Không truyền avatar trong input V1:
 
-## Cấu hình và secrets
-
-Đường dẫn dùng `pathlib`; UTF-8 JSON dùng `ensure_ascii=False`. Path trong TOML tính
-theo thư mục file config, không theo cwd; defaults tính theo vị trí source. Windows
-được hỗ trợ qua API chuẩn và hướng dẫn trên; chưa chạy xác minh trên Windows thực tế.
-
-Có thể tạo `config/local.toml` đã được Git bỏ qua, rồi chạy
-`python app.py --config config/local.toml`. Custom config không merge với `default.toml`;
-keys bỏ trống dùng defaults của `Settings`. Keys TOML: `project_name`, `ai_provider`,
-`ai_model`, `prompts_dir`, `exports_dir`. Default provider vẫn là `unconfigured` để
-không kích hoạt provider ngoài ý muốn.
-
-Environment overrides có precedence cao hơn TOML:
-
-| Variable | Mục đích |
-| --- | --- |
-| `YCO_AI_PROVIDER` | Provider name, hiện chỉ `mock` có adapter |
-| `YCO_AI_MODEL` | Model tương lai; mock không sử dụng |
-| `YCO_AI_API_KEY` | Credential tương lai; mock không cần/không dùng |
-
-`.env.example` chỉ là ví dụ; ứng dụng **không tự đọc `.env`**. Export variables trong
-shell hoặc cấu hình môi trường của máy chạy. Ví dụ:
-
-```powershell
-$env:YCO_AI_PROVIDER = "mock"
+```json
+{
+  "competitor_url": "https://www.youtube.com/@example-music",
+  "competitor_description": "Playlist nhạc Việt acoustic và ballad cho buổi tối.",
+  "target_artist": null,
+  "target_market": "Việt Nam",
+  "target_language": "Tiếng Việt"
+}
 ```
 
-```sh
-export YCO_AI_PROVIDER=mock
+Chỉ URL và description bắt buộc. Optional target fields có thể bỏ qua hoặc dùng null;
+chuỗi rỗng không hợp lệ. URL phải là HTTPS trên hostname YouTube và dạng channel
+`/@handle`, `/channel/id`, `/c/name`, `/user/name`, có thể có subpage như `/videos`.
+Không xác minh URL là kênh đang tồn tại; URL video `/watch` hoặc `/shorts/id` bị từ chối.
+
+`examples/` có các JSON minh họa cho từng response. Có thể tự dán chúng vào CLI để
+thử offline toàn bộ flow, chọn **Mây Âm Nhạc** cho package mẫu. Đây là dữ liệu ví dụ
+đã soạn sẵn, không phải kết quả phân tích kênh thực và không được auto-import.
+
+Chạy `python app.py` chỉ kiểm tra config và chỉ dẫn chế độ manual. V1 không phụ
+thuộc `ai_provider`; các cấu hình provider giữ lại cho code PHASE 2 và tương lai.
+
+## Kiến trúc PHASE 3
+
+- `ManualPromptService`: đọc templates ngoài source và render input thành plain text.
+- `ManualResponseService`: dùng parser strict PHASE 2 để import JSON vào typed models.
+- `ManualAIBridge`: orchestration và transitions; không import hoặc gọi provider/SDK.
+- `WorkflowSession`: dữ liệu hiện tại và pending prompt; `WorkflowState` gồm:
+
+```text
+INPUT → WAITING_FOR_ANALYSIS → ANALYSIS_READY → WAITING_FOR_NAMES
+→ NAMES_READY → NAME_SELECTED → WAITING_FOR_PACKAGE → COMPLETE
 ```
 
-Giá trị environment rỗng bị từ chối. API key chỉ nhận từ environment, không từ TOML,
-không xuất trong settings repr, prompt hoặc profile. Không dump settings/env để debug.
-`.env` và `.env.*` được Git bỏ qua, ngoại trừ `.env.example`. Không commit key/token thật.
+Sai thứ tự gây `WorkflowStateError`. Generate lại khi đang chờ trả cùng prompt.
+Import thất bại không đổi state/data; có thể chọn lại tên trước khi tạo package prompt.
+Các collection được xác thực lại trước khi tạo prompt, chuyển state và export vì
+frozen dataclass không làm list bên trong bất biến sâu. Models xử lý cấu trúc, không
+chứng minh tính đúng của thông tin do AI trả về; người dùng cần đánh giá nội dung.
 
-## Kiểm thử và kế hoạch
+## Models và tương thích
 
-Lệnh toàn bộ suite: `python -m unittest discover -s tests -v`.
-Suite có **61 tests**, gồm PHASE 1 regression, JSON legacy round trip, prompt errors,
-Unicode paths/rendering, provider substitution, mock offline pipeline, malformed JSON,
-invalid schema, missing/extra fields, score/count/category/recommendation rules,
-nested avatar/banner, SEO/slogan/thumbnail, environment settings và CLI selection/export.
-Test offline chặn các network entry points tiêu chuẩn và xóa environment trong lúc
-chạy pipeline; không cần secret hoặc dịch vụ ngoài.
+`CompetitorInput` hỗ trợ các primary keywords V1 `competitor_url`,
+`competitor_description`, `target_artist`, `target_market`, `target_language`.
+Avatar không còn bắt buộc. Constructor positional PHASE 1 và các trường legacy
+`url`, `avatar_reference`, `description`, `target` vẫn đọc được; alias mâu thuẫn
+bị từ chối. Metadata avatar cũ được giữ để đọc profile cũ, không đọc file hoặc sử
+dụng trong manual prompts/export. URL validation mới chỉ nhận các dạng channel
+được liệt kê ở trên, nên URL cũ trỏ video hoặc đường dẫn khác sẽ cần sửa.
 
-PHASE 2 dừng tại mock-backed structured pipeline. PHASE 3 và mọi tích hợp provider
-thật, nguồn dữ liệu, giao diện hoặc automation sẽ chờ phê duyệt và phạm vi riêng.
+`CompetitorAnalysis` giữ đầy đủ schema PHASE 2: summary, positioning,
+reference_artist, music_niche, genre, subgenre, target_market, language,
+target_audience, visual_identity, tone_of_voice, seo_topics,
+branding_characteristics, strengths, opportunities. Mỗi key đều bắt buộc ở response;
+reference_artist có thể null, các text/list còn lại không rỗng. Khi thiếu thông tin,
+prompt yêu cầu mô tả sự không chắc chắn thay vì bịa dữ liệu.
+
+`ChannelNameResult` vẫn yêu cầu đúng 12 tên độc nhất sau trim/casefold, đúng 4 mỗi
+category, score hữu hạn 0–10 và recommendation khớp một suggestion. Tên được chọn
+phải khớp chính xác suggestion, không nhất thiết là recommendation.
+
+`ChannelPackageV1` có đúng các trường:
+
+```text
+channel_positioning, channel_description,
+channel_keywords, video_core_keywords, video_tags, hashtags, title_templates,
+thumbnail_direction, banner_direction, slogan
+```
+
+Text và arrays không rỗng; từng phần tử array phải là string không rỗng. Avatar
+concepts, image prompts và legacy banner object không thuộc schema V1; thêm những
+trường đó bị từ chối. Banner/thumbnail chỉ là hướng thiết kế bằng văn bản.
+
+Legacy `ChannelPackage`, `AvatarConcept`, `BannerConcept`, `ChannelProfile` và
+services/mock PHASE 2 được giữ để regression và đọc dữ liệu cũ. `--mock-demo`
+là demo fixture legacy, không phải workflow V1; nó vẫn trả package shape cũ để giữ
+khả năng kiểm thử. Không có real API hoặc thực thi sinh ảnh trong demo đó.
+Không triển khai `ImageAnalyzer` hoặc một adapter vision.
+
+## Prompt và JSON
+
+Templates là UTF-8 Markdown trong `prompts/`; placeholder dùng `${name}` hoặc `$name`,
+literal dollar dùng `$$`. Các slot title `{artist}` không bị renderer thay thế.
+Renderer chỉ thay một lần; nội dung `${...}` trong description vẫn là dữ liệu.
+Description được đóng gói bằng JSON escaping và prompt nêu rõ không làm theo chỉ dẫn
+nhúng trong dữ liệu. Điều này không đảm bảo một AI bên ngoài luôn tuân thủ; ứng dụng
+chỉ xác thực response JSON/schema sau khi người dùng dán lại.
+
+- `analyze_competitor.md`: chung cho analysis, dùng dữ liệu text và uncertainty rules.
+- `generate_names.md`: chung cho 12 tên.
+- `generate_package_v1.md`: package text-only của manual V1.
+- `generate_package.md`: legacy PHASE 2, giữ cho compatibility/tests.
+
+File thiếu/rỗng, sai UTF-8, syntax hoặc thiếu biến gây `PromptError`.
+Parser không nhận prose, Markdown fences, trailing text, duplicate keys, NaN/Infinity.
+JSON sai cú pháp gây `MalformedResponseError`; missing fields, unknown fields và kiểu
+không hợp lệ gây `ResponseValidationError` có thông báo cụ thể. Không repair hoặc
+invent missing fields. Các prompt nằm ngoài Python; `core` không chứa prompt dài.
+
+## Export
+
+Workflow COMPLETE tạo thư mục theo tên được chọn trong `exports/`. Tên thư mục
+được xử lý các ký tự cấm, trailing dots/spaces và reserved names của Windows;
+Unicode tiếng Việt giữ nguyên. Export lại tạo suffix `-1`, `-2`, ... thay vì ghi đè
+file đã có. Mỗi export có đúng 9 file UTF-8:
+
+```text
+channel_profile.json
+channel_description.txt
+channel_keywords.txt
+video_keywords.txt
+video_tags.txt
+hashtags.txt
+title_templates.txt
+thumbnail_direction.txt
+banner_direction.txt
+```
+
+List được ghi một mục mỗi dòng; `video_keywords.txt` dùng `video_core_keywords`.
+Positioning và slogan nằm trong JSON. Profile mới có `profile_type: "manual_text_v1"`,
+`schema_version: 1`, competitor input, analysis, names, selected_name và package.
+Type marker phân biệt với profile legacy; helper `utils.json_io.read_profile` tiếp tục
+đọc **legacy** `ChannelProfile`, không dùng để đọc shape manual V1. Export V1 không
+chứa metadata avatar hoặc image prompts. Không export session chưa hoàn tất.
+
+## Cấu trúc
+
+```text
+app.py                        # --manual; config check; legacy --mock-demo
+core/
+  contracts.py                # TextGenerator / CompetitorSource legacy ports
+  ai_services.py              # Services PHASE 2 được giữ nguyên
+  manual.py                   # Prompt/import services và ManualAIBridge
+  prompts.py, responses.py    # UTF-8 renderer và strict JSON parser dùng chung
+  errors.py                   # Application errors + WorkflowStateError
+models/
+  channel.py                  # Existing models; optional avatar + primary input aliases
+  manual.py                   # ChannelPackageV1, WorkflowState, WorkflowSession
+  validation.py
+config/
+  settings.py, default.toml
+prompts/
+  README.md
+  analyze_competitor.md
+  generate_names.md
+  generate_package_v1.md
+  generate_package.md          # Legacy
+services/
+  manual_cli.py                # Manual console flow, không dùng provider
+  providers.py, mock.py        # Legacy provider adapter/composition
+  mock_data/                  # Fixture PHASE 2
+utils/
+  manual_export.py             # Windows-safe folders, UTF-8 text-only export
+  json_io.py                   # Legacy profile IO
+examples/
+  competitor_input.json
+  analysis_response.json
+  names_response.json
+  package_v1_response.json
+  README.md
+exports/.gitkeep
+tests/                        # PHASE 1–3 tests
+requirements.txt
+.env.example
+.gitignore
+README.md
+```
+
+Packages có `__init__.py`. Default paths dùng vị trí source; TOML paths tính theo
+thư mục file config, không theo cwd. Local config tùy chọn tại `config/local.toml`,
+chạy với `--config config/local.toml`. Custom config không merge với default.toml;
+keys bỏ trống dùng `Settings` defaults. Keys: project_name, ai_provider, ai_model,
+prompts_dir, exports_dir. Windows compatibility dựa trên `pathlib`, UTF-8 IO và
+folder sanitization; chưa chạy trên Windows thực tế.
+
+## Provider tương lai và secrets
+
+`TextGenerator` được giữ nguyên cho adapter text tương lai tại `services/` và
+composition factory `services/providers.py`. API automation có thể bổ sung sau,
+nhưng là tùy chọn và không cần thay đổi workflow manual V1. Hiện không có production
+AI calls, vision API hay SDK. Mock provider chỉ phục vụ fixture/testing legacy.
+
+V1 không cần thiết lập variable nào. `YCO_AI_PROVIDER`, `YCO_AI_MODEL` và
+`YCO_AI_API_KEY` giữ lại cho configuration legacy/tương lai; environment overrides
+TOML nếu có. Không lưu secrets trong config/source; key bị loại khỏi settings repr.
+`.env.example` chỉ là tài liệu, app không tự đọc `.env`. `.env`/`.env.*` được Git bỏ
+qua, ngoại trừ `.env.example`. Không commit API keys/tokens thật.
+
+## Test và phạm vi tiếp theo
+
+Chạy: `python -m unittest discover -s tests -v`.
+Suite có **105 tests**, gồm 61 regression tests PHASE 1/2 và 44 tests PHASE 3:
+manual prompts/imports, invalid JSON/schema, text-only package, primary/legacy input,
+selected names, đủ 8 state transitions, retry không mất state, offline không provider,
+CLI paste flow, Unicode exports, Windows-safe names, chống ghi đè và cleanup khi lỗi.
+
+PHASE 3 dừng ở manual workflow với state trong bộ nhớ. PHASE 4 hoặc bất kỳ GUI,
+persistence/resume, API automation hay nguồn dữ liệu mới đều chờ phê duyệt riêng.

@@ -1,0 +1,77 @@
+{
+  "names": [
+    {
+      "name": "Acoustic Việt Mỗi Tối",
+      "category": "positioning",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng positioning.",
+      "score": 8.8
+    },
+    {
+      "name": "Ballad Việt Thư Giãn",
+      "category": "positioning",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng positioning.",
+      "score": 8.5
+    },
+    {
+      "name": "Nhạc Việt Bình Yên",
+      "category": "positioning",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng positioning.",
+      "score": 8.2
+    },
+    {
+      "name": "Giai Điệu Buổi Tối",
+      "category": "positioning",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng positioning.",
+      "score": 7.9
+    },
+    {
+      "name": "Mây Âm Nhạc",
+      "category": "brand",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng brand.",
+      "score": 8.8
+    },
+    {
+      "name": "Trạm Giai Điệu",
+      "category": "brand",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng brand.",
+      "score": 8.5
+    },
+    {
+      "name": "Hiên Nhà Music",
+      "category": "brand",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng brand.",
+      "score": 8.2
+    },
+    {
+      "name": "Ánh Trăng Acoustic",
+      "category": "brand",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng brand.",
+      "score": 7.9
+    },
+    {
+      "name": "Nghe Là Chill",
+      "category": "memorable",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng memorable.",
+      "score": 8.8
+    },
+    {
+      "name": "Một Chút Êm",
+      "category": "memorable",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng memorable.",
+      "score": 8.5
+    },
+    {
+      "name": "Bật Nhạc Lên",
+      "category": "memorable",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng memorable.",
+      "score": 8.2
+    },
+    {
+      "name": "Chạm Một Nốt",
+      "category": "memorable",
+      "short_reason": "Tên dễ đọc và phù hợp định hướng memorable.",
+      "score": 7.9
+    }
+  ],
+  "best_recommendation": "Mây Âm Nhạc"
+}

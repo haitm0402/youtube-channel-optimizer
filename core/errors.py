@@ -19,3 +19,7 @@ class MalformedResponseError(ApplicationError):
 
 class ResponseValidationError(ApplicationError):
     """JSON does not satisfy the requested domain schema."""
+
+
+class WorkflowStateError(ApplicationError):
+    """An action is unavailable in the current manual workflow state."""

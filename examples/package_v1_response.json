@@ -1,0 +1,30 @@
+{
+  "channel_positioning": "Nhạc Việt acoustic và ballad dành cho khoảnh khắc thư giãn.",
+  "channel_description": "Mây Âm Nhạc — không gian acoustic và ballad Việt cho những buổi tối bình yên.",
+  "channel_keywords": [
+    "nhạc Việt",
+    "acoustic Việt",
+    "ballad Việt"
+  ],
+  "video_core_keywords": [
+    "nhạc thư giãn",
+    "playlist acoustic"
+  ],
+  "video_tags": [
+    "nhạc Việt thư giãn",
+    "acoustic playlist",
+    "ballad buổi tối"
+  ],
+  "hashtags": [
+    "#NhạcViệt",
+    "#Acoustic",
+    "#ThưGiãn"
+  ],
+  "title_templates": [
+    "{artist} Acoustic | {mood} — {channel_name}",
+    "Nhạc Việt {mood} | Playlist {theme}"
+  ],
+  "slogan": "Một giai điệu, một phút bình yên.",
+  "thumbnail_direction": "Dùng xanh đêm và hổ phách làm hướng thiết kế mới, chưa được xác lập từ đối thủ; một điểm nhìn chính, chữ ngắn rõ trên di động.",
+  "banner_direction": "Đặt tên Mây Âm Nhạc và slogan trong vùng an toàn trung tâm, dùng sans-serif dễ đọc; bảng màu xanh đêm và hổ phách là đề xuất mới."
+}
