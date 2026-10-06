@@ -21,6 +21,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Manual AI bridge, configuration check, or legacy offline mock demo")
     parser.add_argument("--config", help="Path to an optional TOML configuration")
     mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--gui", action="store_true", help="Launch the Windows desktop manual AI workflow")
     mode.add_argument("--manual", action="store_true", help="Run the text-only V1 manual prompt/paste workflow")
     parser.add_argument("--input-json", help="UTF-8 file with competitor input for --manual")
     mode.add_argument("--mock-demo", action="store_true", help="Run analysis and 12 names using fixed mock data")
@@ -52,6 +53,10 @@ def main() -> None:
         for stream in (sys.stdout, sys.stderr):
             if hasattr(stream, "reconfigure"):
                 stream.reconfigure(encoding="utf-8")
+        if args.gui:
+            from gui.app import launch_gui
+            launch_gui(settings)
+            return
         library = ChannelLibrary(JsonSessionStore(settings.data_dir))
         if args.sessions:
             projects = library.list_projects(archived=args.archived)
@@ -86,7 +91,7 @@ def main() -> None:
             return
         if not args.mock_demo:
             print(f"Configuration valid. AI provider: {settings.ai_provider}")
-            print("Phase 4 V1: use --manual --new, --manual --resume ID, or --sessions; no AI provider required.")
+            print("Phase 5 V1: use --gui, --manual --new, --manual --resume ID, or --sessions; no AI provider required.")
             return
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8")
@@ -113,7 +118,7 @@ def main() -> None:
         print(f"Mock profile exported: {destination}")
     except (EOFError, KeyboardInterrupt):
         parser.exit(1, "\nManual workflow cancelled; saved transitions are preserved for --manual --resume; incomplete session was not exported.\n")
-    except (ApplicationError, ValueError, OSError) as exc:
+    except (ApplicationError, ValueError, OSError, RuntimeError) as exc:
         parser.error(str(exc))
 
 

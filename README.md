@@ -1,14 +1,46 @@
 # YouTube Channel Optimizer
 
-**PHASE 4 — Persistent Workflow Sessions + Channel Library.** V1 không cần API key,
+**PHASE 5 — Windows Desktop GUI + Persistent Channel Library.** V1 không cần API key,
 paid AI API, SDK OpenAI hoặc kết nối AI từ ứng dụng. Người dùng tự chuyển prompt và
 JSON giữa công cụ này với ChatGPT/Codex. Việc truy cập ChatGPT/Codex bên ngoài tùy
 thuộc tài khoản của bạn; ứng dụng không kết nối hoặc điều khiển các dịch vụ đó.
 
-Không có GUI, avatar processing/analysis/generation, vision API, sinh ảnh, scraping
+GUI dùng Tkinter/ttk. Không có avatar processing/analysis/generation, vision API, sinh ảnh, scraping
 YouTube, upload hay browser automation. URL hiện chỉ là tham chiếu; mô tả kênh do
 người dùng cung cấp. Visual identity chỉ dựa vào thông tin hình ảnh được mô tả rõ
 trong văn bản; nếu thiếu, prompt yêu cầu nói rõ thông tin đó chưa được xác lập.
+
+## Desktop GUI
+
+```powershell
+.\.venv\Scripts\python.exe app.py --gui
+# Hoặc: py -3 app.py --gui
+```
+
+Windows Python installer cần chọn **Tcl/Tk and IDLE**. Linux cần gói Tcl/Tk của
+hệ điều hành và một display server; CLI/controller tests chạy không cần display.
+Không cần CustomTkinter hay clipboard dependency: ttk đáp ứng giao diện V1 với
+thư viện chuẩn và giảm yêu cầu cài đặt Windows.
+
+MY CHANNELS → NEW CHANNEL → tạo project → COPY PROMPT → tự chuyển sang ChatGPT →
+dán JSON và VALIDATE & CONTINUE. Chọn một trong 12 tên rồi hoàn tất package/export.
+Active là project chưa hoàn tất; Completed là project COMPLETE chưa archive.
+Archived chỉ cho đọc; package đã hoàn tất vẫn copy/export được. Archive cần xác nhận.
+
+`GUIController` dùng `ManualAIBridge`, `ChannelLibrary`, `JsonSessionStore` và
+exporter hiện có; widget không chứa validation hoặc session model riêng. Prompt
+vẫn nằm ngoài Python. Một worker tuần tự thực hiện local I/O; Tk và clipboard
+chỉ chạy trên main thread. Không có network operation trong GUI.
+
+Mở project khôi phục trực tiếp từ persisted state. Chỉ các bước INPUT,
+ANALYSIS_READY và NAME_SELECTED chưa có pending prompt mới chuẩn bị prompt tiếp
+theo. REGENERATE DISPLAY chỉ đọc lại chuỗi pending prompt đã lưu. Lỗi JSON giữ
+nguyên textbox/state. JSON chưa validate và đường dẫn export đang hiển thị không
+được lưu; dữ liệu đã validate được autosave. Nếu một thao tác lưu thành công nhưng
+chuẩn bị prompt tiếp theo thất bại, RELOAD PROJECT tiếp tục từ state đã lưu.
+
+Tất cả Settings paths được dùng lại; `--config` cũng áp dụng cho GUI. Hướng dẫn
+kiểm tra Windows: [docs/WINDOWS_GUI_TEST.md](docs/WINDOWS_GUI_TEST.md).
 
 ## Workflow V1
 
@@ -28,7 +60,7 @@ người dùng sửa rồi dán lại. Không tự chọn recommendation và kh�
 
 ## Chạy ứng dụng
 
-Yêu cầu **Python 3.11+**. Toàn bộ PHASE 1–3 chỉ dùng thư viện chuẩn.
+Yêu cầu **Python 3.11+**. Toàn bộ PHASE 1–5 chỉ dùng thư viện chuẩn; GUI cần Tcl/Tk.
 Chạy từ thư mục repository.
 
 Windows PowerShell:
@@ -197,8 +229,8 @@ COMPLETE nhưng không resume workflow; unarchive chưa nằm trong CLI V1.
 
 Core `ManualAIBridge(..., store=store)` lưu INPUT khi tạo và autosave từng transition;
 `ManualAIBridge.load_session(id, prompts, store)` hydrate đúng state. Giữ tùy chọn
-`store=None` cho in-memory tests/caller cũ; CLI luôn truyền local store. PHASE 5 GUI
-có thể dùng cùng bridge, `ChannelLibrary` và exporter; chỉ thay lớp nhập/xuất console,
+`store=None` cho in-memory tests/caller cũ; CLI luôn truyền local store. GUI
+dùng cùng bridge, `ChannelLibrary` và exporter; chỉ thay lớp nhập/xuất console,
 không cần đổi business logic hoặc thêm API provider.
 
 ## Models và tương thích
@@ -289,7 +321,7 @@ chứa metadata avatar hoặc image prompts. Không export session chưa hoàn t
 ## Cấu trúc
 
 ```text
-app.py                        # --manual; config check; legacy --mock-demo
+app.py                        # --gui, --manual; config check; legacy --mock-demo
 core/
   contracts.py                # SessionStore và legacy text/source ports
   ai_services.py              # Services PHASE 2 được giữ nguyên
@@ -326,7 +358,16 @@ examples/
   README.md
 exports/.gitkeep
 data/.gitkeep                  # Session/lock files runtime được Git bỏ qua
-tests/                        # PHASE 1–3 tests
+gui/
+  controller.py                # State-to-screen mapping; delegates to existing bridge
+  main_window.py, app.py        # ttk shell, serialized local I/O worker, lazy launcher
+  project_list.py              # Library, filters, archive confirmation
+  project_form.py              # Existing CompetitorInput fields
+  project_editor.py            # Prompts, JSON, names, package/export screens
+  widgets.py, dialogs.py        # Unicode text, clipboard, friendly errors
+  platform.py                  # Checked folder opening without shell
+docs/WINDOWS_GUI_TEST.md       # Windows manual checklist
+tests/                        # PHASE 1–5 regression/controller/Tk smoke tests
 requirements.txt
 .env.example
 .gitignore
@@ -356,7 +397,8 @@ qua, ngoại trừ `.env.example`. Không commit API keys/tokens thật.
 ## Test và phạm vi tiếp theo
 
 Chạy: `python -m unittest discover -s tests -v`.
-Suite có **149 tests**, gồm toàn bộ 105 regression tests PHASE 1–3 và 44 tests PHASE 4.
+Suite có **163 tests**, gồm 149 regression tests PHASE 1–4, 13 controller tests
+và một functional Tk smoke test (skip khi không có Tcl/Tk hoặc display server).
 Các regression checks bao gồm:
 manual prompts/imports, invalid JSON/schema, text-only package, primary/legacy input,
 selected names, đủ 8 state transitions, retry không mất state, offline không provider,
@@ -368,5 +410,5 @@ và replace, stale-writer conflicts, lock behavior, archive/filtering, Unicode p
 config và CLI restart qua process độc lập. Demo đã dừng ở NAMES_READY rồi mở lại
 cùng UUID để hoàn tất; analysis và 12 tên cũ được giữ nguyên.
 
-PHASE 5 GUI, API automation, image features, scraping, sync hoặc database không nằm
-trong phase này và cần phê duyệt riêng.
+PHASE 6 chưa bắt đầu. API automation, image features, scraping, sync hoặc database
+cần phê duyệt riêng.

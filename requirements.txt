@@ -1,2 +1,4 @@
-# Python >= 3.11. Phases 1–3 use only the Python standard library.
+# Python >= 3.11. Phases 1–5 use only the Python standard library.
+# Desktop GUI requires Tcl/Tk (included with Windows Python: Tcl/Tk and IDLE).
+# Linux GUI requires the OS Tk package and a display server.
 # Manual V1 needs no AI SDK, provider, or API key.
