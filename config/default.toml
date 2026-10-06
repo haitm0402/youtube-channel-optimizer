@@ -3,3 +3,4 @@ ai_provider = "unconfigured"
 # ai_model can be set when an adapter is available.
 prompts_dir = "../prompts"
 exports_dir = "../exports"
+data_dir = "../data"

@@ -16,6 +16,7 @@ class Settings:
     prompts_dir: Path = PROJECT_ROOT / "prompts"
     exports_dir: Path = PROJECT_ROOT / "exports"
     ai_api_key: str | None = field(default=None, repr=False, compare=False)
+    data_dir: Path = PROJECT_ROOT / "data"
 
     def __post_init__(self) -> None:
         for name in ("project_name", "ai_provider"):
@@ -26,7 +27,7 @@ class Settings:
             raise ValueError("ai_model must be a non-empty string or None")
         if self.ai_api_key is not None and (not isinstance(self.ai_api_key, str) or not self.ai_api_key.strip()):
             raise ValueError("YCO_AI_API_KEY must be non-empty when set")
-        for name in ("prompts_dir", "exports_dir"):
+        for name in ("prompts_dir", "exports_dir", "data_dir"):
             if not isinstance(getattr(self, name), Path):
                 raise ValueError(f"{name} must be a pathlib.Path")
 
@@ -37,11 +38,11 @@ def load_settings(path: Path | str | None = None, *,
     config_path = config_path.resolve()
     with config_path.open("rb") as handle:
         data = tomllib.load(handle)
-    allowed = {"project_name", "ai_provider", "ai_model", "prompts_dir", "exports_dir"}
+    allowed = {"project_name", "ai_provider", "ai_model", "prompts_dir", "exports_dir", "data_dir"}
     unknown = set(data) - allowed
     if unknown:
         raise ValueError(f"Unknown settings: {', '.join(sorted(unknown))}")
-    for name in ("prompts_dir", "exports_dir"):
+    for name in ("prompts_dir", "exports_dir", "data_dir"):
         if name in data:
             if not isinstance(data[name], str) or not data[name].strip():
                 raise ValueError(f"{name} must be a non-empty path string")

@@ -1,8 +1,10 @@
 """Text-only V1 package and state contracts, separate from legacy image packages."""
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from enum import Enum
 from typing import Any
-from .channel import ChannelNameResult, CompetitorAnalysis, CompetitorInput
+from uuid import uuid4
+from .channel import ChannelNameResult, CompetitorAnalysis, CompetitorInput, TargetAudience
+from .session_metadata import parse_timestamp, utc_now, validate_session_id
 from .validation import object_fields, required, strings
 
 PACKAGE_V1_TEXT_FIELDS = {
@@ -61,10 +63,29 @@ class WorkflowSession:
     selected_name: str | None = None
     package: ChannelPackageV1 | None = None
     pending_prompt: str | None = None
+    session_id: str = field(default_factory=lambda: str(uuid4()))
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str | None = None
+    display_name: str | None = None
+    archived: bool = False
+    revision: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.competitor, CompetitorInput):
             raise ValueError("competitor must be a CompetitorInput")
+        validate_session_id(self.session_id)
+        created = parse_timestamp(self.created_at, "created_at")
+        if self.updated_at is None:
+            object.__setattr__(self, "updated_at", self.created_at)
+        if parse_timestamp(self.updated_at, "updated_at") < created:
+            raise ValueError("updated_at must not precede created_at")
+        if self.display_name is None:
+            object.__setattr__(self, "display_name", self.competitor.competitor_url)
+        required(self.display_name, "display_name")
+        if type(self.archived) is not bool:
+            raise ValueError("archived must be a boolean")
+        if type(self.revision) is not int or self.revision < 0:
+            raise ValueError("revision must be a non-negative integer")
         try:
             object.__setattr__(self, "state", WorkflowState(self.state))
         except (TypeError, ValueError) as exc:
@@ -97,13 +118,47 @@ class WorkflowSession:
         elif self.pending_prompt is not None:
             raise ValueError("pending_prompt is only allowed while waiting for a response")
 
+    def to_dict(self) -> dict[str, Any]:
+        replace(self)  # Revalidate nested mutable collections without changing this session.
+        return {"schema_version": 1, "session_id": self.session_id,
+                "created_at": self.created_at, "updated_at": self.updated_at,
+                "display_name": self.display_name, "archived": self.archived, "revision": self.revision,
+                "competitor": asdict(self.competitor), "state": self.state.value,
+                "analysis": self.analysis.to_ai_dict() if self.analysis is not None else None,
+                "names": self.names.to_ai_dict() if self.names is not None else None,
+                "selected_name": self.selected_name,
+                "package": self.package.to_dict() if self.package is not None else None,
+                "pending_prompt": self.pending_prompt}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "WorkflowSession":
+        fields = {"schema_version", "session_id", "created_at", "updated_at", "display_name", "archived",
+                  "revision", "competitor", "state", "analysis", "names", "selected_name", "package", "pending_prompt"}
+        object_fields(data, fields, "WorkflowSession")
+        if type(data["schema_version"]) is not int or data["schema_version"] != 1:
+            raise ValueError("Unsupported workflow session schema_version (expected 1)")
+        # No defaults or repair for persisted required metadata.
+        parse_timestamp(data["created_at"], "created_at")
+        parse_timestamp(data["updated_at"], "updated_at")
+        required(data["display_name"], "display_name")
+        competitor = object_fields(data["competitor"], {"url", "description", "avatar_reference", "target"}, "competitor")
+        target = object_fields(competitor["target"], {"artist", "market", "language"}, "competitor.target")
+        return cls(competitor=CompetitorInput(**{**competitor, "target": TargetAudience(**target)}),
+                   state=data["state"],
+                   analysis=CompetitorAnalysis.from_ai_dict(data["analysis"]) if data["analysis"] is not None else None,
+                   names=ChannelNameResult.from_ai_dict(data["names"]) if data["names"] is not None else None,
+                   selected_name=data["selected_name"],
+                   package=ChannelPackageV1.from_dict(data["package"]) if data["package"] is not None else None,
+                   pending_prompt=data["pending_prompt"], session_id=data["session_id"],
+                   created_at=data["created_at"], updated_at=data["updated_at"], display_name=data["display_name"],
+                   archived=data["archived"], revision=data["revision"])
+
     def to_profile_dict(self) -> dict[str, Any]:
         """Export V1 workflow shape; distinct from the legacy ChannelProfile contract."""
         if self.state != WorkflowState.COMPLETE:
             raise ValueError("Only a COMPLETE workflow can be exported")
         # Revalidate before export because frozen dataclasses still contain mutable lists.
-        WorkflowSession(self.competitor, self.state, self.analysis, self.names,
-                        self.selected_name, self.package, self.pending_prompt)
+        replace(self)
         return {"profile_type": "manual_text_v1", "schema_version": 1,
                 "competitor": self.competitor.to_prompt_dict(),
                 "analysis": self.analysis.to_ai_dict(), "names": self.names.to_ai_dict(),

@@ -23,7 +23,7 @@ def successful_input():
 class ManualCLITests(unittest.TestCase):
     def command(self, directory):
         config = Path(directory) / 'settings.toml'
-        config.write_text('prompts_dir = ' + json.dumps(str(ROOT / 'prompts')) + '\nexports_dir = "exports"\n', encoding='utf-8')
+        config.write_text('prompts_dir = ' + json.dumps(str(ROOT / 'prompts')) + '\nexports_dir = "exports"\ndata_dir = "data"\n', encoding='utf-8')
         return [sys.executable, str(ROOT / 'app.py'), '--manual', '--config', str(config),
                 '--input-json', str(ROOT / 'examples' / 'competitor_input.json')]
 
@@ -89,7 +89,7 @@ class ManualCLITests(unittest.TestCase):
         competitor = CompetitorInput.from_v1_dict(example('competitor_input'))
         lines = successful_input().splitlines()
         with TemporaryDirectory() as directory, patch('builtins.input', side_effect=lines), patch('builtins.print'), patch('services.providers.create_text_generator', side_effect=AssertionError('Provider forbidden')), patch('socket.create_connection', side_effect=AssertionError('Network forbidden')):
-            result = run_manual(Settings(exports_dir=Path(directory)), competitor=competitor)
+            result = run_manual(Settings(exports_dir=Path(directory), data_dir=Path(directory) / "data"), competitor=competitor)
             self.assertTrue((result / 'channel_profile.json').is_file())
 
     def test_incompatible_cli_modes_are_rejected(self):

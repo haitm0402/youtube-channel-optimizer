@@ -23,3 +23,11 @@ class ResponseValidationError(ApplicationError):
 
 class WorkflowStateError(ApplicationError):
     """An action is unavailable in the current manual workflow state."""
+
+
+class SessionStoreError(ApplicationError):
+    """Local session data cannot be read or saved safely."""
+
+
+class SessionConflictError(SessionStoreError):
+    """Another process saved or locked this session; reload before retrying."""

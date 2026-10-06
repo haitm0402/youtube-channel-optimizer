@@ -1,6 +1,6 @@
 # YouTube Channel Optimizer
 
-**PHASE 3 — Manual AI Bridge + Competitor Workflow.** V1 không cần API key,
+**PHASE 4 — Persistent Workflow Sessions + Channel Library.** V1 không cần API key,
 paid AI API, SDK OpenAI hoặc kết nối AI từ ứng dụng. Người dùng tự chuyển prompt và
 JSON giữa công cụ này với ChatGPT/Codex. Việc truy cập ChatGPT/Codex bên ngoài tùy
 thuộc tài khoản của bạn; ứng dụng không kết nối hoặc điều khiển các dịch vụ đó.
@@ -57,8 +57,9 @@ Với `--manual`, nhập URL/mô tả và targets tùy chọn hoặc dùng `--in
 nhiều dòng vào console và kết thúc bằng **`END_JSON` trên một dòng riêng**.
 Lặp lại cho analysis, names và package; chọn tên bằng cách nhập đúng suggestion.
 Nếu phản hồi lỗi, console hiển thị lỗi và cho dán lại. Nếu muốn dừng, dùng Ctrl+C;
-EOF cũng hủy session. Session hiện nằm trong bộ nhớ, chưa lưu/resume giữa các lần
-chạy; chỉ workflow COMPLETE được export. Đây là CLI, chưa phải GUI.
+EOF cũng dừng lần chạy hiện tại. Session và mọi transition thành công đã được lưu
+local, không bị xóa khi đóng console; dùng `--manual --resume SESSION_ID` để tiếp tục.
+JSON đang dán dở chưa import thành công không được lưu. Chỉ COMPLETE được export.
 
 Không truyền avatar trong input V1:
 
@@ -84,12 +85,13 @@ thử offline toàn bộ flow, chọn **Mây Âm Nhạc** cho package mẫu. Đ�
 Chạy `python app.py` chỉ kiểm tra config và chỉ dẫn chế độ manual. V1 không phụ
 thuộc `ai_provider`; các cấu hình provider giữ lại cho code PHASE 2 và tương lai.
 
-## Kiến trúc PHASE 3
+## Manual bridge và persistence PHASE 4
 
 - `ManualPromptService`: đọc templates ngoài source và render input thành plain text.
 - `ManualResponseService`: dùng parser strict PHASE 2 để import JSON vào typed models.
 - `ManualAIBridge`: orchestration và transitions; không import hoặc gọi provider/SDK.
-- `WorkflowSession`: dữ liệu hiện tại và pending prompt; `WorkflowState` gồm:
+- `WorkflowSession`: dữ liệu hiện tại, pending prompt, UUID, display name, timestamps,
+  revision và archive flag; `WorkflowState` gồm:
 
 ```text
 INPUT → WAITING_FOR_ANALYSIS → ANALYSIS_READY → WAITING_FOR_NAMES
@@ -101,6 +103,103 @@ Import thất bại không đổi state/data; có thể chọn lại tên trư�
 Các collection được xác thực lại trước khi tạo prompt, chuyển state và export vì
 frozen dataclass không làm list bên trong bất biến sâu. Models xử lý cấu trúc, không
 chứng minh tính đúng của thông tin do AI trả về; người dùng cần đánh giá nội dung.
+
+## Session local, resume và thư viện kênh
+
+CLI mặc định lưu session tự động khi dùng `--manual`. Ví dụ từ thư mục repository:
+
+```sh
+python app.py --manual --new --input-json examples/competitor_input.json --display-name "Dự án nhạc Việt"
+python app.py --sessions
+python app.py --manual --resume SESSION_ID
+python app.py --view-session SESSION_ID
+python app.py --export-session SESSION_ID
+python app.py --archive SESSION_ID
+python app.py --sessions --archived
+```
+
+Thay `SESSION_ID` bằng UUID được in khi tạo session hoặc tìm trong `--sessions`.
+`--manual` không có `--resume` vẫn tạo session mới để giữ cách dùng PHASE 3.
+`--resume` dùng input và label đã lưu, không kết hợp với `--input-json`/`--display-name`.
+`--view-session` chỉ đọc JSON typed hiện có. `--export-session` yêu cầu COMPLETE và
+cho phép export cả session đã archive. Export lại luôn tạo thư mục mới có suffix,
+không ghi đè export trước. Resume COMPLETE cũng export lại từ package đã lưu, không
+hỏi AI hoặc dán lại response.
+
+| State được mở lại | Hành vi |
+| --- | --- |
+| INPUT | Tạo analysis prompt, lưu trước khi hiển thị |
+| WAITING_FOR_ANALYSIS | Hiển thị đúng pending analysis prompt đã lưu |
+| ANALYSIS_READY | Dùng analysis cũ để tạo names prompt |
+| WAITING_FOR_NAMES | Hiển thị đúng pending names prompt |
+| NAMES_READY | Hiển thị 12 tên đã có để người dùng chọn |
+| NAME_SELECTED | Dùng tên đã chọn và analysis cũ để tạo package prompt |
+| WAITING_FOR_PACKAGE | Hiển thị đúng pending package prompt |
+| COMPLETE | Xem hoặc export lại package hiện có |
+
+Không regenerate analysis/names/package đã có. Những prompt đang chờ được lưu
+nguyên văn, kể cả nếu template trên đĩa đã thay đổi. Mỗi bước mới chỉ được commit
+sau khi validation và save thành công. JSON sai, save lỗi hoặc conflict không làm
+state trong bộ nhớ tiến lên và không thay file session đã lưu.
+
+UUID tạo một lần cho project, độc lập với tên kênh được chọn sau này. Display name
+là label riêng (mặc định URL), được giữ nguyên khi chọn tên. Timestamps lưu ISO 8601
+UTC; created_at không đổi, updated_at thay theo transition/archive. Mỗi lần lưu có
+revision để phát hiện bản đọc cũ. Session schema_version hiện là **1**.
+
+Dữ liệu mặc định:
+
+```text
+data/
+  .gitkeep
+  sessions/
+    UUID.json                   # Một session đầy đủ, kể cả COMPLETE/archive
+    UUID.lock                   # Lock sidecar local; không phải bản sao session
+```
+
+JSON lưu metadata, competitor input, state, analysis, names, selected_name, package
+và pending prompt nếu đang chờ. Serialization chỉ ghi fields của session, không ghi
+settings hoặc API keys. Shape competitor lưu các field legacy để đọc lại input
+PHASE 1/2 khi cần; metadata avatar nếu có chỉ được giữ nguyên, không xử lý ảnh và
+không đưa vào manual prompt/export. Session JSON khác shape `channel_profile.json`;
+không coi export cũ là session để resume.
+
+`data_dir` có thể đặt trong TOML, tương đối theo thư mục config hoặc dùng path tuyệt
+đối. Ví dụ file `config/local.toml`:
+
+```toml
+data_dir = "../data"
+exports_dir = "../exports"
+```
+
+Runtime `data/*` được Git bỏ qua, chỉ `data/.gitkeep` được giữ. Nếu đặt data_dir ở
+nơi khác, chọn thư mục local ngoài tracked source. Dữ liệu lưu local, không có sync,
+Drive hoặc database. Back up thư mục data nếu cần chuyển thư viện sang máy khác.
+
+`core.contracts.SessionStore` tách nghiệp vụ khỏi filesystem. `JsonSessionStore`
+ở `services/json_sessions.py` ghi file tạm UTF-8 trong cùng thư mục, flush + fsync,
+đóng handle rồi `os.replace`. Dùng lock từng UUID (`msvcrt` trên Windows, `fcntl`
+trên POSIX) và compare-and-save revision để ngăn process cũ ghi đè bản mới. Lock
+file được giữ để tránh race khi xóa/tạo lại lock; OS nhả lock khi process đóng.
+Một process đang giữ lock hoặc revision conflict gây lỗi rõ ràng: reload session
+trước khi tiếp tục. Không tuyên bố bảo vệ khỏi mọi sự cố phần cứng/filesystem.
+Windows API đã được thiết kế riêng; chưa chạy suite trên Windows thực tế.
+
+`ChannelLibrary` dựng summaries trực tiếp từ session records, không lưu index chứa
+bản sao toàn bộ data. `--sessions` chỉ active; `--sessions --archived` chỉ archived.
+Summary gồm UUID, display name, competitor URL, reference artist nếu đã biết,
+market/language, selected name, state/status và timestamps. Record corrupt hoặc
+schema version tương lai gây lỗi với session ID; không âm thầm sửa hoặc bỏ qua.
+
+Archive là flag trong cùng record, không xóa vật lý, không đổi state/pending results.
+Archive lặp lại không tạo update mới. Archived sessions read-only: có thể view/export
+COMPLETE nhưng không resume workflow; unarchive chưa nằm trong CLI V1.
+
+Core `ManualAIBridge(..., store=store)` lưu INPUT khi tạo và autosave từng transition;
+`ManualAIBridge.load_session(id, prompts, store)` hydrate đúng state. Giữ tùy chọn
+`store=None` cho in-memory tests/caller cũ; CLI luôn truyền local store. PHASE 5 GUI
+có thể dùng cùng bridge, `ChannelLibrary` và exporter; chỉ thay lớp nhập/xuất console,
+không cần đổi business logic hoặc thêm API provider.
 
 ## Models và tương thích
 
@@ -192,14 +291,16 @@ chứa metadata avatar hoặc image prompts. Không export session chưa hoàn t
 ```text
 app.py                        # --manual; config check; legacy --mock-demo
 core/
-  contracts.py                # TextGenerator / CompetitorSource legacy ports
+  contracts.py                # SessionStore và legacy text/source ports
   ai_services.py              # Services PHASE 2 được giữ nguyên
-  manual.py                   # Prompt/import services và ManualAIBridge
+  manual.py                   # Prompt/import, autosave và resume qua SessionStore
+  channel_library.py          # Metadata summaries và archive
   prompts.py, responses.py    # UTF-8 renderer và strict JSON parser dùng chung
   errors.py                   # Application errors + WorkflowStateError
 models/
   channel.py                  # Existing models; optional avatar + primary input aliases
-  manual.py                   # ChannelPackageV1, WorkflowState, WorkflowSession
+  manual.py                   # Text package, state và strict session serialization
+  session_metadata.py        # UUID và UTC timestamp validation
   validation.py
 config/
   settings.py, default.toml
@@ -210,7 +311,8 @@ prompts/
   generate_package_v1.md
   generate_package.md          # Legacy
 services/
-  manual_cli.py                # Manual console flow, không dùng provider
+  manual_cli.py                # Persistent new/resume flow, không dùng provider
+  json_sessions.py             # Local atomic JSON store
   providers.py, mock.py        # Legacy provider adapter/composition
   mock_data/                  # Fixture PHASE 2
 utils/
@@ -223,6 +325,7 @@ examples/
   package_v1_response.json
   README.md
 exports/.gitkeep
+data/.gitkeep                  # Session/lock files runtime được Git bỏ qua
 tests/                        # PHASE 1–3 tests
 requirements.txt
 .env.example
@@ -234,7 +337,7 @@ Packages có `__init__.py`. Default paths dùng vị trí source; TOML paths tí
 thư mục file config, không theo cwd. Local config tùy chọn tại `config/local.toml`,
 chạy với `--config config/local.toml`. Custom config không merge với default.toml;
 keys bỏ trống dùng `Settings` defaults. Keys: project_name, ai_provider, ai_model,
-prompts_dir, exports_dir. Windows compatibility dựa trên `pathlib`, UTF-8 IO và
+prompts_dir, exports_dir, data_dir. Windows compatibility dựa trên `pathlib`, UTF-8 IO và
 folder sanitization; chưa chạy trên Windows thực tế.
 
 ## Provider tương lai và secrets
@@ -253,10 +356,17 @@ qua, ngoại trừ `.env.example`. Không commit API keys/tokens thật.
 ## Test và phạm vi tiếp theo
 
 Chạy: `python -m unittest discover -s tests -v`.
-Suite có **105 tests**, gồm 61 regression tests PHASE 1/2 và 44 tests PHASE 3:
+Suite có **149 tests**, gồm toàn bộ 105 regression tests PHASE 1–3 và 44 tests PHASE 4.
+Các regression checks bao gồm:
 manual prompts/imports, invalid JSON/schema, text-only package, primary/legacy input,
 selected names, đủ 8 state transitions, retry không mất state, offline không provider,
 CLI paste flow, Unicode exports, Windows-safe names, chống ghi đè và cleanup khi lỗi.
 
-PHASE 3 dừng ở manual workflow với state trong bộ nhớ. PHASE 4 hoặc bất kỳ GUI,
-persistence/resume, API automation hay nguồn dữ liệu mới đều chờ phê duyệt riêng.
+PHASE 4 kiểm thử metadata/serialization ở đủ 8 state, autosave, exact prompt resume,
+corrupt/incompatible JSON, invalid import giữ nguyên disk/memory, failure của fsync
+và replace, stale-writer conflicts, lock behavior, archive/filtering, Unicode paths,
+config và CLI restart qua process độc lập. Demo đã dừng ở NAMES_READY rồi mở lại
+cùng UUID để hoàn tất; analysis và 12 tên cũ được giữ nguyên.
+
+PHASE 5 GUI, API automation, image features, scraping, sync hoặc database không nằm
+trong phase này và cần phê duyệt riêng.

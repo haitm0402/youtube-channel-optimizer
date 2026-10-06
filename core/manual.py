@@ -2,6 +2,8 @@
 from dataclasses import replace
 import json
 from .errors import WorkflowStateError
+from .contracts import SessionStore
+from models.session_metadata import next_timestamp
 from .prompts import PromptLoader, PromptRenderer
 from .responses import parse_response
 from models import (ChannelNameResult, ChannelPackageV1, CompetitorAnalysis, CompetitorInput,
@@ -58,16 +60,42 @@ class ManualResponseService:
 
 class ManualAIBridge:
     def __init__(self, competitor: CompetitorInput, prompts: ManualPromptService,
-                 responses: ManualResponseService | None = None):
+                 responses: ManualResponseService | None = None, *,
+                 store: SessionStore | None = None, display_name: str | None = None):
         self.prompts = prompts
         self.responses = responses if responses is not None else ManualResponseService()
-        self._session = WorkflowSession(competitor)
+        self.store = store
+        self._session = WorkflowSession(competitor, display_name=display_name)
+        if self.store is not None:
+            self.store.save_session(self._session)
+
+    @classmethod
+    def load_session(cls, session_id: str, prompts: ManualPromptService, store: SessionStore,
+                     responses: ManualResponseService | None = None) -> "ManualAIBridge":
+        session = store.load_session(session_id)
+        if session.archived:
+            raise WorkflowStateError("Archived sessions are read-only; use the library to view/export them")
+        value = cls.__new__(cls)
+        value.prompts = prompts
+        value.responses = responses if responses is not None else ManualResponseService()
+        value.store = store
+        value._session = session
+        return value
+
+    def _commit(self, **changes) -> None:
+        candidate = replace(self.session, **changes, updated_at=next_timestamp(self.session.updated_at),
+                            revision=self.session.revision + 1)
+        if self.store is not None:
+            self.store.save_session(candidate, expected_revision=self.session.revision)
+        self._session = candidate
 
     @property
     def session(self) -> WorkflowSession:
         return self._session
 
     def _require(self, *states: WorkflowState) -> None:
+        if self.session.archived:
+            raise WorkflowStateError("Archived sessions are read-only")
         if self.session.state not in states:
             expected = ", ".join(state.value for state in states)
             raise WorkflowStateError(f"Current state {self.session.state.value}; expected {expected}")
@@ -77,13 +105,13 @@ class ManualAIBridge:
         if self.session.state == WorkflowState.WAITING_FOR_ANALYSIS:
             return self.session.pending_prompt
         prompt = self.prompts.analysis_prompt(self.session.competitor)
-        self._session = replace(self.session, state=WorkflowState.WAITING_FOR_ANALYSIS, pending_prompt=prompt)
+        self._commit(state=WorkflowState.WAITING_FOR_ANALYSIS, pending_prompt=prompt)
         return prompt
 
     def import_analysis(self, pasted_json: str) -> CompetitorAnalysis:
         self._require(WorkflowState.WAITING_FOR_ANALYSIS)
         analysis = self.responses.import_analysis(pasted_json)
-        self._session = replace(self.session, state=WorkflowState.ANALYSIS_READY, analysis=analysis, pending_prompt=None)
+        self._commit(state=WorkflowState.ANALYSIS_READY, analysis=analysis, pending_prompt=None)
         return analysis
 
     def generate_names_prompt(self) -> str:
@@ -91,29 +119,29 @@ class ManualAIBridge:
         if self.session.state == WorkflowState.WAITING_FOR_NAMES:
             return self.session.pending_prompt
         prompt = self.prompts.names_prompt(self.session.analysis)
-        self._session = replace(self.session, state=WorkflowState.WAITING_FOR_NAMES, pending_prompt=prompt)
+        self._commit(state=WorkflowState.WAITING_FOR_NAMES, pending_prompt=prompt)
         return prompt
 
     def import_names(self, pasted_json: str) -> ChannelNameResult:
         self._require(WorkflowState.WAITING_FOR_NAMES)
         names = self.responses.import_names(pasted_json)
-        self._session = replace(self.session, state=WorkflowState.NAMES_READY, names=names, pending_prompt=None)
+        self._commit(state=WorkflowState.NAMES_READY, names=names, pending_prompt=None)
         return names
 
     def select_name(self, selected_name: str) -> None:
         self._require(WorkflowState.NAMES_READY, WorkflowState.NAME_SELECTED)
-        self._session = replace(self.session, state=WorkflowState.NAME_SELECTED, selected_name=selected_name)
+        self._commit(state=WorkflowState.NAME_SELECTED, selected_name=selected_name)
 
     def generate_package_prompt(self) -> str:
         self._require(WorkflowState.NAME_SELECTED, WorkflowState.WAITING_FOR_PACKAGE)
         if self.session.state == WorkflowState.WAITING_FOR_PACKAGE:
             return self.session.pending_prompt
         prompt = self.prompts.package_prompt(self.session.analysis, self.session.names, self.session.selected_name)
-        self._session = replace(self.session, state=WorkflowState.WAITING_FOR_PACKAGE, pending_prompt=prompt)
+        self._commit(state=WorkflowState.WAITING_FOR_PACKAGE, pending_prompt=prompt)
         return prompt
 
     def import_package(self, pasted_json: str) -> ChannelPackageV1:
         self._require(WorkflowState.WAITING_FOR_PACKAGE)
         package = self.responses.import_package(pasted_json)
-        self._session = replace(self.session, state=WorkflowState.COMPLETE, package=package, pending_prompt=None)
+        self._commit(state=WorkflowState.COMPLETE, package=package, pending_prompt=None)
         return package
