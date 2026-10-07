@@ -1,4 +1,6 @@
-# Python >= 3.11. Phases 1–5 use only the Python standard library.
+# Python >= 3.11.
 # Desktop GUI requires Tcl/Tk (included with Windows Python: Tcl/Tk and IDLE).
-# Linux GUI requires the OS Tk package and a display server.
+# Release Planner uses Python zoneinfo with the tzdata fallback package so IANA
+# timezone names (for example Asia/Ho_Chi_Minh and America/New_York) work on Windows.
 # Manual V1 needs no AI SDK, provider, or API key.
+tzdata
