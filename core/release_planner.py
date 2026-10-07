@@ -79,7 +79,7 @@ class ReleasePlannerManager:
             raise ValueError("An active release-planner channel with this name already exists")
         channel = ReleaseChannel(
             name=name, target_market=target_market, timezone=timezone,
-            default_time=default_time, release_days=release_days or [0, 1, 2, 3, 4, 5, 6],
+            default_time=default_time, release_days=[0, 1, 2, 3, 4, 5, 6] if release_days is None else release_days,
             notes=notes,
         )
         self._save(plan, channels=[*plan.channels, channel])
@@ -110,6 +110,12 @@ class ReleasePlannerManager:
 
     def archive_channel(self, channel_id: str) -> ReleaseChannel:
         plan = self.load_plan()
+        active_releases = [
+            item for item in plan.releases
+            if item.channel_id == channel_id and not item.archived and item.status != ReleaseStatus.PUBLISHED
+        ]
+        if active_releases:
+            raise ValueError("This channel still has active releases; publish or archive those releases first")
         channels, result = [], None
         for item in plan.channels:
             if item.channel_id == channel_id:
