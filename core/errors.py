@@ -31,3 +31,11 @@ class SessionStoreError(ApplicationError):
 
 class SessionConflictError(SessionStoreError):
     """Another process saved or locked this session; reload before retrying."""
+
+
+class ChannelProfileStoreError(ApplicationError):
+    """Local channel profile data cannot be read or saved safely."""
+
+
+class ChannelProfileConflictError(ChannelProfileStoreError):
+    """Another process saved or locked this channel profile; reload before retrying."""

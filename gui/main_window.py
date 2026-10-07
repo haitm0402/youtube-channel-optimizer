@@ -7,6 +7,7 @@ from .dialogs import error_message
 from .project_editor import ProjectEditor
 from .project_form import ProjectForm
 from .project_list import ProjectList
+from .profile_manager import ProfileList, ProfileEditor
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -34,6 +35,7 @@ class MainWindow(tk.Tk):
         tk.Label(header, text="YouTube Channel Optimizer", background="#111827", foreground="white",
                  font=("Segoe UI", 18, "bold")).pack(side="left")
         ttk.Button(header, text="MY CHANNELS", command=self.show_library).pack(side="right")
+        ttk.Button(header, text="CHANNEL PROFILES", command=self.show_profiles).pack(side="right", padx=(0, 10))
         self.body = ttk.Frame(self)
         self.body.grid(row=1, column=0, sticky="nsew")
         self.body.columnconfigure(0, weight=1)
@@ -77,6 +79,17 @@ class MainWindow(tk.Tk):
     def show_library(self):
         if not self.busy:
             self.replace_view(ProjectList)
+
+    def show_profiles(self):
+        if not self.busy:
+            self.replace_view(ProfileList)
+
+    def show_profile_editor(self, profile):
+        if not self.busy:
+            self.replace_view(ProfileEditor, profile)
+
+    def open_channel_profile(self, identity):
+        self.run_task(lambda: self.controller.load_channel_profile(identity), self.show_profile_editor)
 
     def show_new(self):
         if not self.busy:

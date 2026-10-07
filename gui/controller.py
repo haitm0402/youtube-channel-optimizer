@@ -4,12 +4,14 @@ from enum import Enum
 from pathlib import Path
 from config import Settings
 from core.channel_library import ChannelLibrary
+from core.channel_profiles import ChannelProfileManager
 from core.contracts import SessionStore
 from core.errors import WorkflowStateError
 from core.manual import ManualAIBridge, ManualPromptService
 from core.prompts import PromptLoader
 from models import CompetitorInput, WorkflowSession, WorkflowState
 from services.json_sessions import JsonSessionStore
+from services.json_channel_profiles import JsonChannelProfileStore
 from utils.manual_export import export_manual_profile
 
 
@@ -70,6 +72,7 @@ class GUIController:
         self.settings = settings
         self.store = store if store is not None else JsonSessionStore(settings.data_dir)
         self.library = ChannelLibrary(self.store)
+        self.profile_manager = ChannelProfileManager(JsonChannelProfileStore(settings.data_dir), settings.exports_dir)
         self.prompts = ManualPromptService(PromptLoader(settings.prompts_dir))
         self._bridge: ManualAIBridge | None = None
         self._archived: WorkflowSession | None = None
@@ -162,3 +165,28 @@ class GUIController:
 
     def export_project(self) -> Path:
         return export_manual_profile(self.session, self.settings.exports_dir)
+
+
+    def list_channel_profiles(self, *, archived: bool = False):
+        return self.profile_manager.list_profiles(archived=archived)
+
+    def load_channel_profile(self, profile_id: str):
+        return self.profile_manager.load_profile(profile_id)
+
+    def create_channel_profile(self, **values):
+        return self.profile_manager.create_profile(**values)
+
+    def update_channel_profile(self, profile_id: str, **changes):
+        return self.profile_manager.update_profile(profile_id, **changes)
+
+    def create_profile_from_current_project(self):
+        return self.profile_manager.create_from_session(self.session)
+
+    def archive_channel_profile(self, profile_id: str):
+        return self.profile_manager.archive_profile(profile_id)
+
+    def restore_channel_profile(self, profile_id: str):
+        return self.profile_manager.restore_profile(profile_id)
+
+    def export_channel_profile(self, profile_id: str) -> Path:
+        return self.profile_manager.export_profile(profile_id)

@@ -412,3 +412,17 @@ cùng UUID để hoàn tất; analysis và 12 tên cũ được giữ nguyên.
 
 PHASE 6 chưa bắt đầu. API automation, image features, scraping, sync hoặc database
 cần phê duyệt riêng.
+
+
+## Channel Profile Manager
+
+The desktop app now includes **CHANNEL PROFILES**, a reusable local channel-DNA
+library independent from optimizer sessions. Profiles store artist direction,
+market/language, genre, vocal/flow/lyric/Suno rules, branding, SEO defaults,
+upload time, competitor URLs and notes. Completed optimizer projects can be saved
+with **SAVE AS CHANNEL PROFILE**; repeated saves from the same source session reuse
+the existing profile. Profiles live under `data/channel_profiles/`, can be archived
+without deletion, and can be copied/exported as portable `channel_dna_v1` JSON
+for future Song Factory workflows.
+
+See [docs/CHANNEL_PROFILE_MANAGER.md](docs/CHANNEL_PROFILE_MANAGER.md).

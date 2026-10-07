@@ -114,6 +114,7 @@ class ProjectEditor(ttk.Frame):
         header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         ttk.Label(header, text=self.session.selected_name, style="Section.TLabel").pack(side="left")
         ttk.Button(header, text="EXPORT CHANNEL PACKAGE", style="Accent.TButton", command=self.export).pack(side="right")
+        ttk.Button(header, text="SAVE AS CHANNEL PROFILE", command=self.save_as_profile).pack(side="right", padx=8)
         content = ttk.Frame(self.body)
         content.grid(row=1, column=0, sticky="nsew")
         content.columnconfigure(1, weight=1)
@@ -141,6 +142,13 @@ class ProjectEditor(ttk.Frame):
         self.folder_button = ttk.Button(footer, text="OPEN EXPORT FOLDER", command=self.open_folder, state="disabled")
         self.folder_button.grid(row=0, column=1, padx=(12, 0))
         self.destination = None
+
+
+    def save_as_profile(self):
+        self.window.run_task(
+            self.window.controller.create_profile_from_current_project,
+            self.window.show_profile_editor,
+        )
 
     def show_section(self, section):
         self.section_label.configure(text=section.label)

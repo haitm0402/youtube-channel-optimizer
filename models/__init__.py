@@ -5,9 +5,10 @@ from .channel import (
 )
 
 from .manual import ChannelPackageV1, WorkflowSession, WorkflowState
+from .channel_dna import ChannelDNAProfile
 
 __all__ = [
-    "ChannelPackageV1", "WorkflowSession", "WorkflowState",
+    "ChannelPackageV1", "WorkflowSession", "WorkflowState", "ChannelDNAProfile",
     "AvatarConcept", "BannerConcept", "ChannelNameResult", "ChannelPackage", "ChannelProfile",
     "CompetitorAnalysis", "CompetitorInput", "NameCandidate", "NameCategory", "TargetAudience",
 ]
