@@ -31,3 +31,11 @@ class SessionStoreError(ApplicationError):
 
 class SessionConflictError(SessionStoreError):
     """Another process saved or locked this session; reload before retrying."""
+
+
+class ReleasePlannerStoreError(ApplicationError):
+    """Local release planner data cannot be read or saved safely."""
+
+
+class ReleasePlannerConflictError(ReleasePlannerStoreError):
+    """The release plan changed concurrently; reload before retrying."""

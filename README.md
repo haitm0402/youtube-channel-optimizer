@@ -412,3 +412,19 @@ cùng UUID để hoàn tất; analysis và 12 tên cũ được giữ nguyên.
 
 PHASE 6 chưa bắt đầu. API automation, image features, scraping, sync hoặc database
 cần phê duyệt riêng.
+
+
+## Release Planner
+
+The desktop app now includes **RELEASE PLANNER** for operating many music channels.
+It keeps per-channel target market, timezone, default upload time and preferred
+weekdays, then schedules releases with Audio/Thumbnail/Video/SEO readiness.
+
+The dashboard shows Today, Next 7 Days, Missing Assets, Ready and Scheduled. Release
+times are also converted to Vietnam time for operations. **USE NEXT AVAILABLE SLOT**
+finds the next free preferred slot for a channel. CSV export is Excel-friendly and
+does not overwrite prior exports.
+
+Release Planner is local-only in this phase: no YouTube API, Google Calendar, AI API,
+auto-publishing or browser automation. See
+[docs/RELEASE_PLANNER.md](docs/RELEASE_PLANNER.md).

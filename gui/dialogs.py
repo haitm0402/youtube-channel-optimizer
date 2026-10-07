@@ -1,5 +1,6 @@
 """Friendly error messages; exception details go only to an optional logger."""
-from core.errors import MalformedResponseError, ResponseValidationError, SessionConflictError
+from core.errors import (MalformedResponseError, ResponseValidationError, SessionConflictError,
+                         ReleasePlannerConflictError)
 
 
 def error_message(error: Exception) -> str:
@@ -7,6 +8,8 @@ def error_message(error: Exception) -> str:
         return "Invalid JSON. Paste one JSON object without Markdown fences."
     if isinstance(error, SessionConflictError):
         return "Session changed or is busy in another process. Reload the project before continuing."
+    if isinstance(error, ReleasePlannerConflictError):
+        return "Release Planner changed in another process. Refresh the planner and try again."
     if isinstance(error, ResponseValidationError):
         return str(error).removeprefix("AI response schema validation failed: ")
     if isinstance(error, (ValueError, OSError)):

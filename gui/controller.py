@@ -4,12 +4,14 @@ from enum import Enum
 from pathlib import Path
 from config import Settings
 from core.channel_library import ChannelLibrary
+from core.release_planner import ReleasePlannerManager
 from core.contracts import SessionStore
 from core.errors import WorkflowStateError
 from core.manual import ManualAIBridge, ManualPromptService
 from core.prompts import PromptLoader
 from models import CompetitorInput, WorkflowSession, WorkflowState
 from services.json_sessions import JsonSessionStore
+from services.json_release_planner import JsonReleasePlannerStore
 from utils.manual_export import export_manual_profile
 
 
@@ -70,6 +72,7 @@ class GUIController:
         self.settings = settings
         self.store = store if store is not None else JsonSessionStore(settings.data_dir)
         self.library = ChannelLibrary(self.store)
+        self.release_planner = ReleasePlannerManager(JsonReleasePlannerStore(settings.data_dir), settings.exports_dir)
         self.prompts = ManualPromptService(PromptLoader(settings.prompts_dir))
         self._bridge: ManualAIBridge | None = None
         self._archived: WorkflowSession | None = None
@@ -162,3 +165,53 @@ class GUIController:
 
     def export_project(self) -> Path:
         return export_manual_profile(self.session, self.settings.exports_dir)
+
+
+    def release_planner_snapshot(self):
+        return {
+            "channels": self.release_planner.list_channels(),
+            "releases": self.release_planner.list_release_rows(range_name="Next 7 Days"),
+            "summary": self.release_planner.summary(),
+        }
+
+    def list_release_rows(self, **filters):
+        return self.release_planner.list_release_rows(**filters)
+
+    def list_release_channels(self, *, archived: bool = False):
+        return self.release_planner.list_channels(archived=archived)
+
+    def get_release_channel(self, channel_id: str):
+        return self.release_planner.get_channel(channel_id)
+
+    def add_release_channel(self, **values):
+        return self.release_planner.add_channel(**values)
+
+    def update_release_channel(self, channel_id: str, **changes):
+        return self.release_planner.update_channel(channel_id, **changes)
+
+    def archive_release_channel(self, channel_id: str):
+        return self.release_planner.archive_channel(channel_id)
+
+    def restore_release_channel(self, channel_id: str):
+        return self.release_planner.restore_channel(channel_id)
+
+    def suggest_next_release_slot(self, channel_id: str, *, start_date: str | None = None):
+        return self.release_planner.suggest_next_slot(channel_id, start_date=start_date)
+
+    def add_release(self, **values):
+        return self.release_planner.add_release(**values)
+
+    def get_release(self, release_id: str):
+        return self.release_planner.get_release(release_id)
+
+    def update_release(self, release_id: str, **changes):
+        return self.release_planner.update_release(release_id, **changes)
+
+    def mark_release_published(self, release_id: str, youtube_url: str | None = None):
+        return self.release_planner.mark_published(release_id, youtube_url=youtube_url)
+
+    def archive_release(self, release_id: str):
+        return self.release_planner.archive_release(release_id)
+
+    def export_release_plan_csv(self) -> Path:
+        return self.release_planner.export_csv()
